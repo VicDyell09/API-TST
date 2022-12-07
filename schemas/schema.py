@@ -1,7 +1,7 @@
 def motor_serializer(motor) -> dict:
     return{
         "id": str(motor["_id"]),
-        "tipe_motor": motor["Tipe Motor"],
+        "tipe_motor": motor["Tipe_Motor"],
         "harga": motor["Harga"]
     }
 

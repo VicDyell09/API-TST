@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class Motor(BaseModel):
-    Tipe_Motor: str = Field(default=None)
-    Harga: int = Field(default=None)
+    Tipe_Motor: str 
+    Harga: int 
     class Config:
         schema_extra = {
             "HargaMotor" : {

@@ -1,38 +1,81 @@
-from fastapi import APIRouter
-from database.database import dbmotor, dbuser
+from fastapi import APIRouter, Depends
+from database.database import dbmotor
 from models.modelmotor import Motor
 from models.modeluser import User
-from schemas.schema import motor_serializer, motors_serializer
-from fastapi import FastAPI, HTTPException, Depends, Request,status
-from authentication.hashing import Hash
-from authentication.jwttoken import create_access_token
 from authentication.authentication import get_current_user
 
 app_motor = APIRouter()
 
 @app_motor.get("/motor")
 def tes_autentikasi(current_user:User = Depends(get_current_user)):
-	return {"data": "Hello World! Authentication Success"}
+	return {"motor": "Hello World! Authentication Success"}
+
+@app_motor.post("/motor")
+def insert_motor(new_motor: Motor, current_user:User = Depends(get_current_user)):
+    motor = {'Tipe_Motor': '', 'Harga': ''}
+    motor['Tipe_Motor'] = new_motor.Tipe_Motor
+    motor['Harga'] = new_motor.Harga
+
+    insert = dbmotor.insert_one(motor)
+    return {"motor": "insert success"}
+
+@app_motor.delete("/motor/{jenis_motor}")
+def delete_motor(jenis_motor: str, current_user:User = Depends(get_current_user)):
+    jumlah = dbmotor.count_documents({"Tipe_Motor": jenis_motor})
+
+    if (jumlah == 0):
+        return{'message': 'Tipe motor yang Anda masukkan salah. Silakan masukkan tipe motor yang benar'}
+
+    delete = dbmotor.delete_one({"Tipe_Motor": jenis_motor})
+    return {"motor": "delete success"}
+
+@app_motor.put("/motor/{jenis_motor}")
+def update_harga_motor(jenis_motor: str, harga_baru: int, current_user:User = Depends(get_current_user)):
+    indicator = {"Tipe_Motor": jenis_motor }
+    newvalues = { "$set": { "Harga": harga_baru } }
+
+    jumlah = dbmotor.count_documents({"Tipe_Motor": jenis_motor})
+
+    if (jumlah == 0):
+        return{'message': 'Tipe motor yang Anda masukkan salah. Silakan masukkan tipe motor yang benar'}
+
+    dbmotor.update_one(indicator, newvalues)
+    return({"motor": "update success"})
 
 @app_motor.get("/motor/{jenis_motor}")
 def cek_harga(jenis_motor: str):
-    motor = dbmotor.find_one({"Tipe Motor": jenis_motor})
+    motor = dbmotor.find_one({"Tipe_Motor": jenis_motor})
+    jumlah = dbmotor.count_documents({"Tipe_Motor": jenis_motor})
+
+    if (jumlah == 0):
+        return{'message': 'Tipe motor yang Anda masukkan salah. Silakan masukkan tipe motor yang benar'}
+
     harga_motor = motor['Harga']
     return harga_motor
 
 @app_motor.get("/motor/cicilan/{jenis_motor}")
-def hitung_cicilan(jenis_motor: str, bunga: float, tenor: int, down_payment: int):
+def hitung_cicilan(jenis_motor: str, bunga: float, tenor: int, down_payment: int, current_user:User = Depends(get_current_user)):
     cicilan = {'cicilan': ''}
-    motor = dbmotor.find_one({"Tipe Motor": jenis_motor})
+    motor = dbmotor.find_one({"Tipe_Motor": jenis_motor})
+    jumlah = dbmotor.count_documents({"Tipe_Motor": jenis_motor})
+
+    if (jumlah == 0):
+        return{'message': 'Tipe motor yang Anda masukkan salah. Silakan masukkan tipe motor yang benar'}
     harga_motor = motor['Harga']
     hutang = harga_motor - down_payment
     cicilan['cicilan'] = ((hutang * bunga * tenor) + hutang) / tenor
-    return cicilan
+    return {"cicilan sebesar": cicilan}
 
 @app_motor.get("/motor/cicilan/rekomendasi/{jenis_motor}")
-def hitung_rekomendasi(jenis_motor: str, bunga: float, tenor: int, down_payment: int, budget_per_bulan: int):
+def hitung_rekomendasi(jenis_motor: str, bunga: float, tenor: int, down_payment: int, budget_per_bulan: int, current_user:User = Depends(get_current_user)):
     cicilan = {'cicilan': ''}
-    motor = dbmotor.find_one({"Tipe Motor": jenis_motor})
+    motor = {'Tipe_Motor': '', 'Harga': ''}
+    motor = dbmotor.find_one({"Tipe_Motor": jenis_motor})
+    jumlah = dbmotor.count_documents({"Tipe_Motor": jenis_motor})
+
+    if (jumlah == 0):
+        return{'message': 'Tipe motor yang Anda masukkan salah. Silakan masukkan tipe motor yang benar'}
+
     harga_motor = motor['Harga']
     hutang = harga_motor - down_payment
     cicilan['cicilan'] = ((hutang * bunga * tenor) + hutang) / tenor
@@ -47,11 +90,9 @@ def hitung_rekomendasi(jenis_motor: str, bunga: float, tenor: int, down_payment:
     batas_bawah = {'batas_bawah': ''}
     batas_bawah['batas_bawah'] = batas_rekomendasi['batas_rekomendasi']-10000000 #diambil hingga kurang dari 10 juta dari harga yang direkomendasikan
 
-    # motor_sesuai_budget = dbmotor.find({"$and":[{"Harga": {"$lt": batas_rekomendasi}}, {"Harga": {"gt": batas_bawah}}]})
-    # motor_sesuai_budget = dbmotor.find({"Harga": {"$lt": batas_rekomendasi}})
     list_motor =[]
     for x in dbmotor.find({"$and":[{"Harga": {"$lt": batas_rekomendasi['batas_rekomendasi']}}, {"Harga": {"$gt": batas_bawah['batas_bawah']}}]}).limit(5):
-        list_motor.append(x['Tipe Motor'])
+        list_motor.append(x['Tipe_Motor'])
 
     if (cicilan['cicilan'] <= kemampuan['kemampuan'] and len(list_motor)>0): #spare 1 juta untuk biaya bensin dan kebutuhan motor lainnya
         return{"cicilan sebesar": cicilan['cicilan'], "message": "Anda mampu untuk membeli motor tersebut", "rekomendasi motor sesuai budget": list_motor}
