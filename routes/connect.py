@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, status, Response, HTTPException
 import requests
-import json
 from enum import Enum
+
+#connect ke API partner
 
 class bbmModel(str, Enum):
     Pertamax_Turbo = "Pertamax Turbo"

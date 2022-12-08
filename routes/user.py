@@ -7,6 +7,7 @@ from database.database import dbuser
 
 app_user = APIRouter()
 
+#menambah user baru ke dalam database (register)
 @app_user.post('/register')
 def create_user(request:User):
 	hashed_pass = Hash.bcrypt(request.password)
@@ -15,6 +16,7 @@ def create_user(request:User):
 	user_id = dbuser.insert_one(user_object)
 	return {"User":"created"}
 
+#melakukan login untuk API lain dan akan mengeluarkan token access untuk menyambungkan API nya
 @app_user.post('/login')
 def login(request:OAuth2PasswordRequestForm = Depends()):
 	user = dbuser.find_one({"username":request.username})
